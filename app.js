@@ -1,7 +1,8 @@
 import { firebaseConfig, sharedPath } from './firebase-config.js';
 
-const APP_VERSION = 'RC3';
-const ACTV_TIMES_URL = 'https://avm.avmspa.it/it/content/orari-servizio-di-navigazione-0';
+const APP_VERSION = 'RC4';
+const ACTV_TIMES_URL = 'https://actv.avmspa.it/it/content/orari-navigazione-test';
+const ACTV_MAPS_URL = 'https://avm.avmspa.it/it/content/consulta-le-mappe';
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -29,18 +30,30 @@ const guideCatalog = [
 ];
 
 const vapStops = {
-  roma:{name:'P.le Roma',lat:45.4387,lng:12.3181},
-  ferrovia:{name:'Ferrovia',lat:45.4412,lng:12.3215},
-  rialto:{name:'Rialto',lat:45.4381,lng:12.3358},
-  sanmarco:{name:'S. Marco',lat:45.4334,lng:12.3360},
-  ftnove:{name:'Fondamente Nove',lat:45.4459,lng:12.3425},
-  murano:{name:'Murano Faro',lat:45.4584,lng:12.3524},
-  burano:{name:'Burano',lat:45.4853,lng:12.4167},
-  torcello:{name:'Torcello',lat:45.4987,lng:12.4177}
+  roma:{name:'P.le Roma',lat:45.4387,lng:12.3181,zone:'venice'},
+  ferrovia:{name:'Ferrovia / S. Lucia',lat:45.4412,lng:12.3215,zone:'venice'},
+  rialto:{name:'Rialto',lat:45.4381,lng:12.3358,zone:'venice'},
+  sanmarco:{name:'S. Marco / S. Zaccaria',lat:45.4334,lng:12.3401,zone:'venice'},
+  ftnove:{name:'Fondamente Nove',lat:45.4459,lng:12.3425,zone:'venice'},
+  murano:{name:'Murano Faro',lat:45.4584,lng:12.3524,zone:'murano'},
+  burano:{name:'Burano',lat:45.4853,lng:12.4167,zone:'burano'},
+  torcello:{name:'Torcello',lat:45.4987,lng:12.4177,zone:'torcello'}
 };
 
+// Orari di riferimento ACTV pubblicati nel 2026. Restano sempre da verificare live prima di salire.
+const vapTimetables = {
+  line12FtnoveOut:['04:20','04:40','05:00','05:40','06:10','06:40','07:10','07:40','08:10','08:40','09:10','09:40','10:10','10:40','11:00','11:20','11:40','12:00','12:20','12:40','13:00','13:20','13:40','14:00','14:20','14:40','15:00','15:20','15:40','16:00','16:20','16:40','17:00','17:20','17:40','18:10','18:40','19:10','19:40','20:10','20:40','21:20','22:25'],
+  line12MuranoOut:['04:28','04:49','05:09','05:49','06:19','06:49','07:19','07:49','08:19','08:49','09:19','09:49','10:19','10:49','11:09','11:29','11:49','12:09','12:29','12:49','13:09','13:29','13:49','14:09','14:29','14:49','15:09','15:29','15:49','16:09','16:29','16:49','17:09','17:29','17:49','18:19','18:49','19:19','19:49','20:19','20:49','21:29','22:34'],
+  line12BuranoBack:['05:00','05:56','06:16','06:55','07:25','07:55','08:25','08:55','09:25','09:55','10:25','10:55','11:25','11:45','12:05','12:25','12:45','13:05','13:25','13:45','14:05','14:25','14:45','15:05','15:25','15:45','16:05','16:25','16:45','17:05','17:25','17:45','18:05','18:25','18:55','19:25','19:55','20:25','21:10','21:55','23:10','00:10'],
+  line3FerroviaOut:['06:25','06:55','07:25','07:55','08:25','08:55','09:15','09:35','09:55','10:15','10:35','10:55','11:15','11:35','11:55','12:15','12:35','12:55','13:25','13:55','14:25','14:55','15:25','15:45','16:05','16:25','16:45','17:05','17:25','17:45','18:05','18:25'],
+  line9BuranoOut:['09:30','09:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','12:30','12:45','13:00','13:15','13:30','13:45','14:00','14:15','14:30','14:45','15:00','15:15','15:30','15:45','16:00','16:15','16:30','16:45','17:00','17:15','17:30','17:45'],
+  line9TorcelloBack:['09:40','09:55','10:10','10:25','10:40','10:55','11:10','11:25','11:40','11:55','12:10','12:25','12:40','12:55','13:10','13:25','13:40','13:55','14:10','14:25','14:40','14:55','15:10','15:25','15:40','15:55','16:10','16:25','16:40','16:55','17:10','17:25','17:40','17:55']
+};
+let vapGeo = null;
+
+
 const starterState = {
-  version: 3,
+  version: 4,
   config: {
     title: 'Bacaro Tour Venezia 2026',
     date: '2026-10-29',
@@ -100,7 +113,7 @@ function normalizeState(raw){
   out.topEvents=Array.isArray(raw.topEvents)?raw.topEvents:[];
   out.activity=Array.isArray(raw.activity)?raw.activity:[];
   out.guideFavorites=Array.isArray(raw.guideFavorites)?raw.guideFavorites:[];
-  out.version=3;
+  out.version=4;
   return out;
 }
 
@@ -146,12 +159,12 @@ function updateSyncLabel(force){
 async function mutate(mutator, activity=null){
   if(backendMode==='remote' && firebaseApi){
     await firebaseApi.runTransaction(firebaseApi.rootRef, current=>{
-      const next=normalizeState(current||starterState); mutator(next); next.version=3;
+      const next=normalizeState(current||starterState); mutator(next); next.version=4;
       if(activity) next.activity=[...(next.activity||[]),{id:uid(),at:nowISO(),...activity}].slice(-350);
       return next;
     });
   }else{
-    mutator(state); state.version=3;
+    mutator(state); state.version=4;
     if(activity) state.activity=[...(state.activity||[]),{id:uid(),at:nowISO(),...activity}].slice(-350);
     localStorage.setItem(storageKey,JSON.stringify(state)); render();
   }
@@ -460,41 +473,129 @@ async function addGuideRoute(item,day){
 }
 
 function renderVaporetto(){
-  $('#mainView').innerHTML=`<div class="page-head"><div><span class="eyebrow">ORIENTARSI AL VOLO</span><h2>🚤 Mappa Vaporetti</h2><p>Schema semplice dei nodi che useremo di più. Gli orari reali vanno sempre verificati su ACTV.</p></div></div>
-    <div id="vapMap" aria-label="Mappa orientativa vaporetti"></div>
-    <div class="vap-legend"><span><b>1</b> Canal Grande</span><span><b>12</b> Isole nord</span></div>
-    <section class="card planner-card"><h3>Da dove → dove vuoi andare</h3><div class="planner-grid"><label>Partenza<select id="vapFrom"><option value="current">Posizione attuale</option><option value="ferrovia">Ferrovia / S. Lucia</option><option value="rialto">Rialto</option><option value="ftnove">Fondamente Nove</option><option value="hotel">Hotel</option></select></label><label>Destinazione<select id="vapTo"><option value="rialto">Rialto</option><option value="ftnove">Fondamente Nove</option><option value="murano">Murano</option><option value="burano">Burano</option><option value="torcello">Torcello</option><option value="ferrovia">Ferrovia / S. Lucia</option></select></label></div><div id="vapAdvice" class="route-advice"></div><div class="actions-row"><button class="primary-btn green" id="googleTransit">🧭 Percorso mezzi</button><a class="primary-btn ghost link-button" href="${ACTV_TIMES_URL}" target="_blank" rel="noopener">🕒 Orari ACTV</a></div></section>
-    <h3 class="section-title">Linee da ricordare</h3><div class="route-cards"><div class="card route-card"><b>Linea 1</b><span>P.le Roma → Ferrovia → Rialto → S. Marco → Lido</span></div><div class="card route-card"><b>Linea 2 / 2/</b><span>Collegamenti rapidi lungo il Canal Grande; la 2/ copre P.le Roma ↔ Ferrovia ↔ Rialto.</span></div><div class="card route-card"><b>Linea 3</b><span>P.le Roma / Ferrovia ↔ Murano.</span></div><div class="card route-card"><b>Linea 12</b><span>Fondamente Nove → Murano → Mazzorbo / Torcello → Burano → Treporti.</span></div></div>
-    <div class="info-note">ℹ️ Mappa orientativa: linee, banchine e orari possono cambiare. Prima di partire usa sempre “Orari ACTV”.</div>`;
-  $('#vapFrom').addEventListener('change',updateVapAdvice); $('#vapTo').addEventListener('change',updateVapAdvice); $('#googleTransit').addEventListener('click',openTransitPlanner); updateVapAdvice(); setTimeout(initVapMap,0);
+  const opts=`<option value="current">📍 Posizione attuale</option><option value="hotel">🏨 Hotel</option><option value="roma">🚏 P.le Roma</option><option value="ferrovia">🚆 Ferrovia / S. Lucia</option><option value="rialto">🌉 Rialto</option><option value="sanmarco">🦁 S. Marco / S. Zaccaria</option><option value="ftnove">🚤 Fondamente Nove</option><option value="murano">🏝️ Murano Faro</option><option value="burano">🏝️ Burano</option><option value="torcello">🏝️ Torcello</option>`;
+  $('#mainView').innerHTML=`<div class="page-head transport-head"><div><span class="eyebrow">QUANDO SERVE RISPARMIARE TEMPO</span><h2>🚤 Mezzi · Muoviti veloce</h2><p>La Mappa Tour resta per camminare. Qui trovi solo la soluzione pratica: <b>come arrivare all’imbarco, cosa prendere e dove scendere</b>.</p></div></div>
+    <div class="quick-destinations"><button class="transport-chip" data-vap-quick="murano">🏝️ Murano</button><button class="transport-chip" data-vap-quick="burano">🏝️ Burano</button><button class="transport-chip" data-vap-quick="ftnove">🚤 F.te Nove</button><button class="transport-chip danger" data-vap-quick="ferrovia">🚆 S. Lucia</button></div>
+    <section class="card planner-card transport-planner">
+      <div class="planner-title"><div><span class="eyebrow">PERCORSO RAPIDO</span><h3>Da dove → dove</h3></div><span class="live-badge">RC4 TEST</span></div>
+      <div class="planner-grid"><label>Partenza<select id="vapFrom">${opts}</select></label><label>Destinazione<select id="vapTo">${opts.replace('<option value="current">📍 Posizione attuale</option>','')}</select></label></div>
+      <button class="primary-btn green transport-calc" id="vapCalc">⚡ Calcola soluzione semplice</button>
+      <div id="vapAdvice" class="transport-result"><div class="transport-placeholder">Scegli partenza e destinazione. L’app ti porta prima <b>a piedi all’imbarco giusto</b>, poi ti indica linea, pontile e fermata di discesa.</div></div>
+    </section>
+    <div class="transport-tools"><a class="service transport-tool" href="${ACTV_TIMES_URL}" target="_blank" rel="noopener"><span>🕐</span><b>Orari ACTV</b><small>verifica live</small></a><a class="service transport-tool" href="${ACTV_MAPS_URL}" target="_blank" rel="noopener"><span>🚏</span><b>Mappe approdi</b><small>pontili ufficiali</small></a></div>
+    <div class="info-note">ℹ️ La soluzione proposta privilegia <b>semplicità e pochi cambi</b>. Gli orari mostrati nell’app sono riferimenti ACTV 2026: prima di salire controlla sempre il live, soprattutto in caso di marea, eventi o variazioni di servizio.</div>`;
+  $('#vapFrom').value='current'; $('#vapTo').value='burano';
+  $('#vapCalc').addEventListener('click',calculateVapRoute);
+  $$('[data-vap-quick]').forEach(b=>b.addEventListener('click',()=>{$('#vapTo').value=b.dataset.vapQuick;calculateVapRoute();}));
+  $('#vapFrom').addEventListener('change',()=>{$('#vapAdvice').innerHTML='<div class="transport-placeholder">Premi <b>Calcola soluzione semplice</b>.</div>';});
+  $('#vapTo').addEventListener('change',()=>{$('#vapAdvice').innerHTML='<div class="transport-placeholder">Premi <b>Calcola soluzione semplice</b>.</div>';});
 }
-function initVapMap(){
-  const el=$('#vapMap');if(!el||typeof L==='undefined')return;if(vapMap){vapMap.remove();vapMap=null;}
-  vapMap=L.map('vapMap',{zoomControl:true}).setView([45.456,12.355],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(vapMap);
-  Object.entries(vapStops).forEach(([id,s])=>L.circleMarker([s.lat,s.lng],{radius:8,color:'#7d1027',fillColor:'#f7f0e4',fillOpacity:1,weight:3}).addTo(vapMap).bindTooltip(s.name,{permanent:false}));
-  const line1=['roma','ferrovia','rialto','sanmarco'].map(k=>[vapStops[k].lat,vapStops[k].lng]);
-  const line12=['ftnove','murano','torcello','burano'].map(k=>[vapStops[k].lat,vapStops[k].lng]);
-  L.polyline(line1,{color:'#7d1027',weight:5,opacity:.8}).addTo(vapMap).bindTooltip('Linea 1 · schema');
-  L.polyline(line12,{color:'#0d533b',weight:5,opacity:.8}).addTo(vapMap).bindTooltip('Linea 12 · schema');
-  vapMap.fitBounds([...line1,...line12],{padding:[22,22]});
+
+async function calculateVapRoute(){
+  const btn=$('#vapCalc'); const result=$('#vapAdvice'); if(!btn||!result)return;
+  btn.disabled=true; btn.textContent='⏳ Calcolo…';
+  let from=$('#vapFrom').value, to=$('#vapTo').value;
+  try{
+    if(from==='current'){
+      const pos=await getVapPosition(); vapGeo={lat:pos.coords.latitude,lng:pos.coords.longitude}; from=nearestVapStop(vapGeo,['roma','ferrovia','rialto','sanmarco','ftnove']);
+    } else if(from==='hotel'){
+      const hotel=stopById('hotel'); from=(hotel?.lat!=null&&hotel?.lng!=null)?nearestVapStop({lat:hotel.lat,lng:hotel.lng},['roma','ferrovia','rialto','sanmarco','ftnove']):'rialto';
+    }
+    const plan=buildVapPlan(from,to);
+    result.innerHTML=renderVapPlan(plan, $('#vapFrom').value, to);
+    bindVapPlanActions(plan,$('#vapFrom').value,to);
+  }catch(err){
+    console.warn(err); result.innerHTML=`<div class="route-advice warning"><b>📍 Posizione non disponibile.</b><br>Seleziona manualmente il punto di partenza più vicino e riprova.</div>`;
+  }finally{btn.disabled=false;btn.textContent='⚡ Calcola soluzione semplice';}
 }
-function updateVapAdvice(){
-  const from=$('#vapFrom')?.value,to=$('#vapTo')?.value; const el=$('#vapAdvice');if(!el)return; let txt='';
-  if((to==='murano'||to==='burano'||to==='torcello')){
-    if(from==='ftnove') txt=to==='murano'?'Da Fondamente Nove: controlla Linea 12 verso Murano.':`Da Fondamente Nove: la Linea 12 è il riferimento principale verso ${vapStops[to].name}.`;
-    else if(from==='ferrovia'&&to==='murano') txt='Da Ferrovia: controlla Linea 3 per Murano; in alternativa raggiungi Fondamente Nove e verifica la 12.';
-    else txt=`Per ${vapStops[to].name}: in genere conviene orientarsi su Fondamente Nove e controllare la Linea 12. Google Maps ti calcola il percorso aggiornato dal punto reale.`;
-  } else if((from==='ferrovia'&&to==='rialto')||(from==='rialto'&&to==='ferrovia')) txt='Canal Grande: Linea 1; controlla anche Linea 2 / 2/ per un collegamento più rapido in base all’orario.';
-  else txt='Usa “Percorso mezzi” per il tragitto dal punto reale e “Orari ACTV” per verificare partenze e variazioni.';
-  el.textContent=txt;
+function getVapPosition(){
+  return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error('geolocation'));navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:8000,maximumAge:60000});});
 }
-function openTransitPlanner(){
-  const from=$('#vapFrom').value,to=$('#vapTo').value; let destination='';
-  if(to==='hotel') destination=state.config.hotelAddress||state.config.hotelName;
-  else destination=vapStops[to]?.name?`${vapStops[to].name}, Venezia`:to;
-  let origin=''; if(from==='hotel') origin=state.config.hotelAddress||state.config.hotelName; else if(from!=='current') origin=vapStops[from]?.name?`${vapStops[from].name}, Venezia`:from;
-  const url=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=transit${origin?`&origin=${encodeURIComponent(origin)}`:''}`; window.open(url,'_blank');
+function nearestVapStop(point,keys){
+  return keys.map(k=>({k,d:haversine(point,vapStops[k])})).sort((a,b)=>a.d-b.d)[0].k;
+}
+function haversine(a,b){
+  const r=6371,toRad=x=>x*Math.PI/180,dLat=toRad(b.lat-a.lat),dLng=toRad(b.lng-a.lng),la1=toRad(a.lat),la2=toRad(b.lat);return 2*r*Math.asin(Math.sqrt(Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2));
+}
+function buildVapPlan(from,to){
+  if(from===to)return {kind:'walk',title:'Sei già nella zona giusta',summary:`${vapStops[to].name}: non serve prendere un vaporetto.`,walkDirect:true};
+  // Isole
+  if(to==='burano'){
+    if(from==='murano') return transitPlan('Linea 12','Murano Faro','A','Burano','B','Burano / Treporti','murano','burano','line12MuranoOut','Diretto e semplice: nessun cambio.');
+    if(from==='torcello') return transitPlan('Linea 9','Torcello',null,'Burano','A','Burano','torcello','burano','line9TorcelloBack','Collegamento breve tra le due isole.');
+    return transitPlan('Linea 12','Fondamente Nove','A','Burano','B','Burano / Treporti / P. Sabbioni','ftnove','burano','line12FtnoveOut','Per Burano la scelta semplice è raggiungere Fondamente Nove a piedi e partire da lì.');
+  }
+  if(to==='murano'){
+    if(from==='burano') return transitPlan('Linea 12','Burano','C','Murano Faro','A','Fondamente Nove','burano','murano','line12BuranoBack','Diretto verso Murano Faro.');
+    if(from==='ferrovia'||from==='roma') return transitPlan('Linea 3','Ferrovia / S. Lucia','D','Murano','Colonna / Faro','Murano','ferrovia','murano','line3FerroviaOut','Da zona stazione la Linea 3 evita di attraversare Venezia a piedi.');
+    if(from==='ftnove') return transitPlan('Linea 12','Fondamente Nove','A','Murano Faro','A','Murano / Burano','ftnove','murano','line12FtnoveOut','Tratta diretta e molto semplice.');
+    return transitPlan('Linea 12','Fondamente Nove','A','Murano Faro','A','Murano / Burano','ftnove','murano','line12FtnoveOut','Dal centro conviene prima raggiungere Fondamente Nove a piedi.');
+  }
+  if(to==='torcello'){
+    if(from==='burano') return transitPlan('Linea 9','Burano','A','Torcello',null,'Torcello','burano','torcello','line9BuranoOut','Cinque minuti di navigazione circa.');
+    return {kind:'transfer',title:'Torcello · soluzione semplice',summary:'Meglio evitare di inseguire corse speciali: Linea 12 fino a Burano, poi Linea 9 per Torcello.',steps:[
+      {icon:'🚶',title:'Raggiungi Fondamente Nove',text:'Vai a piedi all’imbarco ACTV.',action:'walk',target:'ftnove'},
+      {icon:'🚤',title:'Linea 12 · Fondamente Nove A → Burano',text:'Direzione Burano / Treporti. Scendi a Burano.',times:'line12FtnoveOut'},
+      {icon:'🔁',title:'Cambio a Burano',text:'Raggiungi l’approdo della Linea 9.'},
+      {icon:'🚤',title:'Linea 9 · Burano A → Torcello',text:'Collegamento breve tra le isole.',times:'line9BuranoOut'}
+    ],board:'ftnove',alight:'torcello'};
+  }
+  // Rientro dalle isole
+  if((from==='burano'||from==='torcello') && to==='ferrovia'){
+    const first=from==='burano'?{line:'Linea 12',board:'Burano',pier:'C',times:'line12BuranoBack'}:{line:'Linea 9 + Linea 12',board:'Torcello',pier:null,times:'line9TorcelloBack'};
+    return {kind:'return',title:'🚆 Rientro verso S. Lucia',summary:'Soluzione robusta: rientra a Fondamente Nove e chiudi a piedi verso la stazione, senza dipendere da un secondo cambio.',steps:[
+      {icon:'🚤',title:`${first.line} · ${first.board} → Fondamente Nove`,text:`${first.pier?`Approdo ${first.pier}. `:''}Segui la direzione Venezia / Fondamente Nove.`,times:first.times},
+      {icon:'🚶',title:'Fondamente Nove → S. Lucia',text:'Ultimo tratto a piedi. Se sei stretto coi tempi, controlla live se una linea 4.2 è in arrivo; altrimenti cammina.' ,action:'walkFromTo',from:'ftnove',target:'ferrovia'}
+    ],board:from,alight:'ferrovia'};
+  }
+  if(from==='murano' && to==='ferrovia') return transitPlan('Linea 3','Murano','Colonna / Faro','Ferrovia','C','P.le Roma','murano','ferrovia',null,'Collegamento diretto verso la stazione; verifica la prossima corsa live.');
+  // Venezia interna: privilegia i nodi del Canal Grande; F.te Nove spesso è più semplice a piedi.
+  const canal=['roma','ferrovia','rialto','sanmarco'];
+  if(canal.includes(from)&&canal.includes(to)){
+    const forward=(from==='roma'||from==='ferrovia')&&(to==='rialto'||to==='sanmarco');
+    const reverse=(from==='sanmarco'||from==='rialto')&&(to==='ferrovia'||to==='roma');
+    return transitPlan('Linea 1 / Linea 2',vapStops[from].name,null,vapStops[to].name,null,forward?'Rialto / S. Marco / Lido':reverse?'Ferrovia / P.le Roma':'direzione indicata al pontile',from,to,null,'Sul Canal Grande: controlla quale tra 1 e 2 parte prima. Se l’attesa è lunga, confronta con il percorso a piedi.');
+  }
+  if(from==='ftnove' && ['rialto','ferrovia','sanmarco','roma'].includes(to)) return {kind:'walk',title:'Qui spesso conviene camminare',summary:`Da Fondamente Nove a ${vapStops[to].name} il vaporetto può aggiungere attesa/cambi. Apri subito il percorso a piedi e usa i mezzi solo se trovi una coincidenza favorevole.`,walkDirect:true,from,to};
+  if(['rialto','ferrovia','sanmarco','roma'].includes(from) && to==='ftnove') return {kind:'walk',title:'Raggiungi Fondamente Nove a piedi',summary:'Per entrare sulla rete delle isole è spesso la soluzione più semplice e prevedibile.',walkDirect:true,from,to};
+  return {kind:'walk',title:'Confronta con il percorso a piedi',summary:'Per questo tratto non conviene forzare un giro in vaporetto: controlla prima il percorso pedonale.',walkDirect:true,from,to};
+}
+function transitPlan(line,boardName,boardPier,alightName,alightPier,direction,boardKey,alightKey,timesKey,note){
+  return {kind:'transit',title:'🚤 Vaporetto consigliato',summary:note,line,boardName,boardPier,alightName,alightPier,direction,boardKey,alightKey,timesKey,steps:[
+    {icon:'🚶',title:`Vai a piedi a ${boardName}${boardPier?` · ${boardPier}`:''}`,text:'Apri Maps solo per raggiungere l’imbarco.',action:'walk',target:boardKey},
+    {icon:'🚤',title:`${line} · ${direction}`,text:`Sali a ${boardName}${boardPier?` (pontile ${boardPier})`:''}.`,times:timesKey},
+    {icon:'📍',title:`Scendi a ${alightName}${alightPier?` · ${alightPier}`:''}`,text:'Controlla il nome dell’approdo sul display ACTV.'}
+  ]};
+}
+function renderVapPlan(plan,originalFrom,to){
+  if(plan.walkDirect){
+    return `<div class="transport-verdict walk"><span>🚶</span><div><b>${escapeHtml(plan.title)}</b><p>${escapeHtml(plan.summary)}</p></div></div><div class="transport-actions"><button class="primary-btn wine" data-walk-direct>🚶 Apri percorso a piedi</button><a class="primary-btn ghost link-button" href="${ACTV_TIMES_URL}" target="_blank" rel="noopener">🚤 Controlla comunque ACTV</a></div>`;
+  }
+  const steps=(plan.steps||[]).map((st,i)=>`<div class="transport-step"><div class="step-num">${i+1}</div><div class="step-icon">${st.icon}</div><div class="step-copy"><b>${escapeHtml(st.title)}</b><p>${escapeHtml(st.text||'')}</p>${st.times?renderNextTimes(st.times):''}${st.action==='walk'?`<button class="small-btn accent" data-walk-target="${st.target}">🚶 Portami all’imbarco</button>`:''}${st.action==='walkFromTo'?`<button class="small-btn accent" data-walk-between="${st.from}|${st.target}">🚶 Apri tratto a piedi</button>`:''}</div></div>`).join('');
+  return `<div class="transport-verdict"><span>⚡</span><div><b>${escapeHtml(plan.title)}</b><p>${escapeHtml(plan.summary||'')}</p></div></div><div class="transport-steps">${steps}</div><div class="transport-actions"><a class="primary-btn green link-button" href="${ACTV_TIMES_URL}" target="_blank" rel="noopener">🕐 Verifica orari live</a><a class="primary-btn ghost link-button" href="${ACTV_MAPS_URL}" target="_blank" rel="noopener">🚏 Vedi pontili</a></div>`;
+}
+function renderNextTimes(key){
+  const list=vapTimetables[key]; if(!list?.length)return '';
+  const next=getNextTimes(list,3); return `<div class="next-times"><span>🕐 Prossime indicative</span>${next.map(x=>`<b>${x}</b>`).join('')}</div>`;
+}
+function getNextTimes(list,count=3){
+  const d=new Date(),mins=d.getHours()*60+d.getMinutes(); const parsed=list.map(t=>{const[h,m]=t.split(':').map(Number);return{t,m:h*60+m};});
+  const future=parsed.filter(x=>x.m>=mins).map(x=>x.t); return (future.length>=count?future:[...future,...parsed.map(x=>x.t)]).slice(0,count);
+}
+function bindVapPlanActions(plan,originalFrom,to){
+  $$('[data-walk-target]').forEach(b=>b.addEventListener('click',()=>openWalkingRoute(originalFrom,b.dataset.walkTarget)));
+  $$('[data-walk-between]').forEach(b=>b.addEventListener('click',()=>{const[a,z]=b.dataset.walkBetween.split('|');openWalkingRoute(a,z);}));
+  $('[data-walk-direct]')?.addEventListener('click',()=>openWalkingRoute(originalFrom,to));
+}
+function openWalkingRoute(fromKey,toKey){
+  const target=vapStops[toKey]; if(!target)return;
+  let origin='';
+  if(fromKey==='current') origin='';
+  else if(fromKey==='hotel') origin=state.config.hotelAddress||state.config.hotelName||'';
+  else if(vapStops[fromKey]) origin=`${vapStops[fromKey].lat},${vapStops[fromKey].lng}`;
+  const destination=`${target.lat},${target.lng}`;
+  const url=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=walking${origin?`&origin=${encodeURIComponent(origin)}`:''}`;
+  window.open(url,'_blank');
 }
 
 function openSettings(){

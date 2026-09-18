@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Bacaro Tour Venezia 2026",
   "short_name": "Bacaro Tour",
-  "description": "Bacaro Tour Venezia 2026: tour condiviso, bevute, guida, vaporetti, mappe e diario.",
+  "description": "Bacaro Tour Venezia 2026: tour condiviso, bevute, guida, planner vaporetti, mappe e diario.",
   "lang": "it-IT",
   "start_url": "./index.html",
   "scope": "./",
