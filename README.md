@@ -34,3 +34,8 @@ Con Firebase attivo l'intestazione mostra **Sincronizzazione LIVE**. Le modifich
 
 ## Nota mappa
 Alcune tappe del PDF originale sono già posizionate; le tappe non ancora verificate appaiono come **Da posizionare** e possono essere modificate dall'app.
+
+
+## RC2 - PWA install fix
+Questa versione mette logo e icone PWA anche nella root della repository per evitare errori 404 negli upload da smartphone.
+Carica TUTTI i file e le cartelle della RC2 nella root della repository GitHub. Dopo il deploy, attendi 1-2 minuti e ricarica la pagina in Chrome.

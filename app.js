@@ -124,7 +124,7 @@ function renderHome(){
   $('#mainView').innerHTML=`
     <div class="home-layout">
       <section class="hero"><div class="hero-inner">
-        <img class="hero-logo" src="assets/logo.jpg" alt="Logo Bacaro Tour" />
+        <img class="hero-logo" src="./logo.jpg" alt="Logo Bacaro Tour" />
         <h1>Bacaro Tour<br>Venezia 2026</h1>
         <p>29 ottobre · goliardia organizzata, mappa e diario condiviso.</p>
         <button class="primary-btn" data-go="tour">🍷 Entra nel Tour</button>
@@ -341,7 +341,6 @@ $$('.nav-btn').forEach(b=>b.addEventListener('click',()=>{currentView=b.dataset.
 $('#settingsBtn').addEventListener('click',openSettings);
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')) $('#modal').close();});
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__installPrompt=e;});
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(console.warn);
 
 await initBackend();
 render();
