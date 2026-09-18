@@ -1,41 +1,29 @@
-# Bacaro Tour Venezia 2026 — RC1
+# Bacaro Tour Venezia 2026 — RC3
 
-Prima release funzionale della PWA condivisa.
+Release di test focalizzata su utilizzo reale durante il tour.
 
-## Già presente
-- Grafica coerente con il mockup e logo ufficiale fornito.
-- PWA installabile su Android/desktop.
-- Home, Mappa, Tour, Diario Live.
-- Mappa Leaflet/OpenStreetMap di tutta Venezia.
-- Giorno 1 precaricato con struttura Prologo + Tour Cannaregio.
-- Giorno 2 indipendente e costruibile da zero.
-- Aggiunta/modifica/eliminazione/riordino tappe.
-- Stato tappa: da fare / fatta / saltata.
-- Bevute individuali per partecipante.
-- Valutazione personale 1–5 stelle.
-- Note personali.
-- Top Event.
-- Diario automatico e statistiche bevute.
-- Link rapidi ACTV, Trenitalia e mappa pedonale.
-- Backend predisposto per sincronizzazione Firebase Realtime Database.
+## Novità RC3
+- **Bevute visibili dentro ogni bacaro**, divise per partecipante e tipo.
+- Pulsante **−** per correggere/cancellare una bevuta inserita per errore.
+- Il pulsante bevuta mostra il conteggio del partecipante selezionato in quel bacaro.
+- La prima bevuta segna automaticamente il bacaro come **Fatto**.
+- **Altro** chiede il nome reale della bevuta (es. Bellini, Select, Grappa...).
+- Diario ricostruito dai dati reali: eliminando una bevuta sparisce anche dalla cronologia.
+- Top Event visibili nella scheda del bacaro, modificabili e cancellabili.
+- Voto/note, Top Event e gestione tappa sono ora sezioni richiudibili per rendere la scheda più rapida.
+- **Posizionamento tappa migliorato**: dalla scheda premi “Posiziona/Sposta sulla mappa” e poi tocchi il punto.
+- Nuova sezione **🧭 Guida Venezia** con luoghi da vedere, bacari, botteghe e itinerari; ogni elemento può essere aggiunto a Giorno 1 o Giorno 2.
+- Nuova sezione **🚤 Mappa Vaporetti** con schema orientativo, nodi principali, linee utili, mini-planner e link agli orari ACTV.
+- Home con **Prossima tappa**.
+- Grafica più calda: meno bianco puro, più crema/beige mantenendo bordeaux, verde, oro, icone ed emoji.
+- Versione visibile nelle impostazioni e pulsante **Aggiorna app**.
+- Migrazione dati: mantiene le prove locali salvate dalla RC2 usando lo stesso localStorage.
 
-## Modalità condivisa
-La RC1 funziona subito in modalità demo locale. Per vedere le stesse modifiche su tutti i telefoni:
+## Vaporetti
+La schermata è volutamente una guida orientativa, non sostituisce l'orario ufficiale. Le indicazioni rapide sono costruite sulle linee ACTV correnti consultate a settembre 2026; per partenze, banchine e variazioni usare sempre il pulsante **Orari ACTV** nell'app.
 
-1. Crea o usa un progetto Firebase.
-2. Abilita **Realtime Database**.
-3. Abilita **Authentication > Anonymous**.
-4. Registra una **Web App** Firebase e copia l'oggetto `firebaseConfig`.
-5. Apri `firebase-config.js` e sostituisci `null` con l'oggetto Firebase.
-6. Pubblica le regole di `firebase-rules.json` nel Realtime Database.
-7. Pubblica la cartella su GitHub Pages/hosting HTTPS.
+## Firebase
+La RC3 resta utilizzabile in modalità demo locale. Quando i test funzionali saranno chiusi, si può attivare Firebase Realtime Database senza rifare l'interfaccia.
 
-Con Firebase attivo l'intestazione mostra **Sincronizzazione LIVE**. Le modifiche vengono eseguite tramite transazioni sullo stato condiviso, così più telefoni possono aggiornare il tour senza usare conti economici o profili individuali.
-
-## Nota mappa
-Alcune tappe del PDF originale sono già posizionate; le tappe non ancora verificate appaiono come **Da posizionare** e possono essere modificate dall'app.
-
-
-## RC2 - PWA install fix
-Questa versione mette logo e icone PWA anche nella root della repository per evitare errori 404 negli upload da smartphone.
-Carica TUTTI i file e le cartelle della RC2 nella root della repository GitHub. Dopo il deploy, attendi 1-2 minuti e ricarica la pagina in Chrome.
+## Installazione su GitHub Pages
+Caricare **tutti** i file della cartella nella root della repository, lasciando Pages su `main / (root)`. Dopo il deploy aprire l'app, andare in Impostazioni e premere **Aggiorna app** se il telefono continua a mostrare la RC2.
