@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#7d1027" />
+  <meta name="description" content="Bacaro Tour Venezia 2026" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Bacaro Tour Venezia 2026</title>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand-mini">
+        <img src="assets/logo.jpg" alt="Logo Bacaro Tour Venezia" />
+        <div>
+          <strong>Bacaro Tour Venezia 2026</strong>
+          <span id="syncLabel">Avvio…</span>
+        </div>
+      </div>
+      <button class="icon-btn" id="settingsBtn" aria-label="Impostazioni">⚙️</button>
+    </header>
+
+    <main id="mainView" class="main-view" aria-live="polite"></main>
+
+    <nav class="bottom-nav" aria-label="Navigazione principale">
+      <button data-view="home" class="nav-btn active"><span>⌂</span><b>Home</b></button>
+      <button data-view="map" class="nav-btn"><span>🗺</span><b>Mappa</b></button>
+      <button data-view="tour" class="nav-btn"><span>🍷</span><b>Tour</b></button>
+      <button data-view="diary" class="nav-btn"><span>📖</span><b>Diario</b></button>
+    </nav>
+  </div>
+
+  <dialog id="modal" class="modal"><div id="modalBody"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

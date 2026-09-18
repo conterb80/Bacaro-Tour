@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "bacaro-tour-venezia-2026": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
