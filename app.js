@@ -1,6 +1,6 @@
 import { firebaseConfig, sharedPath } from './firebase-config.js';
 
-const APP_VERSION = 'RC6';
+const APP_VERSION = 'v1.0 · CONDIVISA';
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -120,6 +120,9 @@ let activeModalStopId = null;
 let activeModalParticipantId = null;
 let pendingPlaceStopId = null;
 let guideFilter = 'all';
+let hadLocalBeforeFirebase = false;
+let lastSyncAt = null;
+let ownerPromptShown = false;
 
 const storageKey = 'bacaro-tour-2026-local';
 const deviceParticipantKey = 'bacaro-tour-2026-device-person';
@@ -153,31 +156,83 @@ function findStop(st,id){ return [...st.tours.day1.stops,...st.tours.day2.stops]
 
 async function initBackend(){
   const saved = localStorage.getItem(storageKey);
+  hadLocalBeforeFirebase = !!saved;
   if(saved){ try{ state=normalizeState(JSON.parse(saved)); }catch{} }
   const hasConfig = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.databaseURL;
   if(!hasConfig){ backendMode='local'; updateSyncLabel(); return; }
   try{
-    const [{initializeApp},{getDatabase,ref,onValue,runTransaction},{getAuth,signInAnonymously}] = await Promise.all([
+    const [{initializeApp},{getDatabase,ref,onValue,runTransaction,get},{getAuth,signInAnonymously}] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js'),
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js')
     ]);
-    const app=initializeApp(firebaseConfig); const auth=getAuth(app); await signInAnonymously(auth);
+    const app=initializeApp(firebaseConfig);
+    const auth=getAuth(app);
+    await signInAnonymously(auth);
     const db=getDatabase(app); const rootRef=ref(db,sharedPath);
-    firebaseApi={rootRef,runTransaction,onValue}; backendMode='remote';
+    firebaseApi={rootRef,runTransaction,onValue,get};
+
+    const initial=await get(rootRef);
+    if(initial.exists()){
+      state=normalizeState(initial.val());
+      localStorage.setItem(storageKey,JSON.stringify(state));
+      backendMode='remote'; lastSyncAt=new Date();
+    }else{
+      // Non pubblichiamo nulla automaticamente: il telefono principale decide quando
+      // migrare i dati RC6 su Firebase. In questo modo un telefono nuovo non può
+      // inizializzare per errore un tour vuoto.
+      backendMode='remote-wait';
+    }
+
     onValue(rootRef, snap=>{
-      if(snap.exists()) state=normalizeState(snap.val());
-      else runTransaction(rootRef,()=>clone(starterState));
-      updateSyncLabel(); render();
-      if(activeModalStopId && $('#modal')?.open) openStopModal(activeModalStopId,activeModalParticipantId);
+      if(snap.exists()){
+        state=normalizeState(snap.val());
+        localStorage.setItem(storageKey,JSON.stringify(state));
+        backendMode='remote'; lastSyncAt=new Date();
+        updateSyncLabel(); render();
+        if(activeModalStopId && $('#modal')?.open) openStopModal(activeModalStopId,activeModalParticipantId);
+        setTimeout(maybeAskDeviceOwner,180);
+      }else{
+        backendMode='remote-wait'; updateSyncLabel(); render();
+      }
     });
-  }catch(err){ console.error(err); backendMode='local'; updateSyncLabel('Firebase non disponibile · demo locale'); }
+  }catch(err){ console.error(err); backendMode='local'; updateSyncLabel('Firebase non disponibile · dati locali'); }
 }
 
 function updateSyncLabel(force){
   const el=$('#syncLabel'); if(!el) return;
-  el.textContent=force || (backendMode==='remote'?`● ${APP_VERSION} · LIVE`:`● ${APP_VERSION} · Demo locale`);
-  el.style.color=backendMode==='remote'?'#0d533b':'#8a6421';
+  const txt = backendMode==='remote' ? `● ${APP_VERSION} · LIVE` : backendMode==='remote-wait' ? `● ${APP_VERSION} · Pronto` : `● ${APP_VERSION} · Locale`;
+  el.textContent=force || txt;
+  el.style.color=backendMode==='remote'?'#0d533b':backendMode==='remote-wait'?'#7d1027':'#8a6421';
+}
+
+async function activateSharing(){
+  if(!firebaseApi){ showToast('Firebase non disponibile'); return; }
+  if(backendMode==='remote'){ showToast('Condivisione già attiva'); return; }
+  const snapshot=clone(state);
+  try{
+    await firebaseApi.runTransaction(firebaseApi.rootRef,current=>current || snapshot);
+    showToast('Condivisione attivata');
+  }catch(err){ console.error(err); showToast('Impossibile attivare la condivisione'); }
+}
+
+async function shareApp(){
+  const url=`${location.origin}${location.pathname}`;
+  const title='Bacaro Tour Venezia 2026';
+  const text='Apri il Bacaro Tour condiviso e installalo sul telefono. Al primo avvio scegli il tuo nome.';
+  try{
+    if(navigator.share){ await navigator.share({title,text,url}); }
+    else if(navigator.clipboard){ await navigator.clipboard.writeText(url); showToast('Link copiato'); }
+    else{ prompt('Copia questo link',url); }
+  }catch(err){ if(err?.name!=='AbortError') console.warn(err); }
+}
+
+function maybeAskDeviceOwner(){
+  if(ownerPromptShown || backendMode!=='remote' || deviceParticipantId() || !state.participants?.length || $('#modal')?.open) return;
+  ownerPromptShown=true; const m=$('#modal'); activeModalStopId=null;
+  $('#modalBody').innerHTML=`<div class="modal-head"><div><div class="tiny muted">PRIMO AVVIO SU QUESTO TELEFONO</div><h2>📱 Di chi è questo telefono?</h2></div></div><div class="modal-content"><p class="muted">Serve solo per preselezionare la persona corretta quando registri una bevuta.</p><div class="owner-choice">${state.participants.map(p=>`<button class="primary-btn ghost" data-owner="${p.id}">${escapeHtml(p.name)}</button>`).join('')}</div><button class="small-btn" id="ownerLater">Più tardi</button></div>`;
+  $$('[data-owner]',m).forEach(b=>b.addEventListener('click',()=>{localStorage.setItem(deviceParticipantKey,b.dataset.owner);m.close();showToast(`Telefono impostato: ${participantName(b.dataset.owner)}`);}));
+  $('#ownerLater',m).addEventListener('click',()=>m.close()); if(!m.open)m.showModal();
 }
 
 async function mutate(mutator, activity=null){
@@ -669,8 +724,21 @@ function exportBackup(){
 }
 function openSettings(){
   const m=$('#modal'); activeModalStopId=null; const deviceId=deviceParticipantId();
-  $('#modalBody').innerHTML=`<div class="modal-head"><h2>Impostazioni Tour</h2><button class="close-btn" data-close>✕</button></div><div class="modal-content"><div class="sync-box ${backendMode}"><strong>${backendMode==='remote'?'✅ Condivisione LIVE attiva':'🧪 Final Candidate · dati locali'}</strong><div class="tiny muted" style="margin-top:3px">${backendMode==='remote'?'Ogni modifica viene sincronizzata in tempo reale su tutti i telefoni.':'Questa versione serve per l’ultimo test. Dopo l’ok colleghiamo Firebase e condividiamo il tour.'}</div><div class="version-row"><span>Versione</span><strong>${APP_VERSION}</strong></div></div>
-  <h3 class="section-title">📱 Questo telefono è di…</h3><div class="form-row"><label>Partecipante<select id="devicePerson"><option value="">— Scegli —</option>${state.participants.map(p=>`<option value="${p.id}" ${p.id===deviceId?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></label></div><p class="tiny muted">Serve solo a preselezionare la persona giusta quando registri una bevuta. Ogni telefono potrà avere il proprio nome.</p>
+  const syncClass=backendMode==='remote'?'remote':backendMode==='remote-wait'?'wait':'local';
+  const syncTitle=backendMode==='remote'?'✅ Condivisione LIVE attiva':backendMode==='remote-wait'?'☁️ Firebase pronto · tour non ancora pubblicato':'📱 Modalità locale';
+  const syncText=backendMode==='remote'
+    ? `Ogni modifica viene sincronizzata in tempo reale su tutti i telefoni${lastSyncAt?` · ultimo dato ${lastSyncAt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}`:''}.`
+    : backendMode==='remote-wait'
+      ? (hadLocalBeforeFirebase?'Questo è il telefono principale: pubblica una sola volta i dati già testati, poi condividi il link agli amici.':'Il tour condiviso non è ancora stato creato. Aspetta che venga attivato dal telefono principale.')
+      : 'La rete condivisa non è disponibile: l’app continua a usare la copia locale.';
+  const syncAction=backendMode==='remote'
+    ? `<button class="primary-btn green" id="shareAppBtn">📲 Condividi app con gli amici</button>`
+    : backendMode==='remote-wait' && hadLocalBeforeFirebase
+      ? `<button class="primary-btn wine" id="activateSharingBtn">🚀 Attiva condivisione usando questi dati</button><p class="tiny muted">Premilo solo sul telefono principale, dopo aver controllato i nomi dei partecipanti.</p>`
+      : '';
+
+  $('#modalBody').innerHTML=`<div class="modal-head"><h2>Impostazioni Tour</h2><button class="close-btn" data-close>✕</button></div><div class="modal-content"><div class="sync-box ${syncClass}"><strong>${syncTitle}</strong><div class="tiny muted" style="margin-top:3px">${syncText}</div><div class="version-row"><span>Versione</span><strong>${APP_VERSION}</strong></div>${syncAction?`<div style="margin-top:10px">${syncAction}</div>`:''}</div>
+  <h3 class="section-title">📱 Questo telefono è di…</h3><div class="form-row"><label>Partecipante<select id="devicePerson"><option value="">— Scegli —</option>${state.participants.map(p=>`<option value="${p.id}" ${p.id===deviceId?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></label></div><p class="tiny muted">È una preferenza solo di questo telefono. Serve a preselezionare la persona corretta nelle bevute.</p>
   <h3 class="section-title">Partecipanti</h3><div class="settings-list" id="peopleList">${state.participants.map(p=>`<div class="person-row"><input value="${attr(p.name)}" data-person-name="${p.id}"><button class="small-btn" data-remove-person="${p.id}">✕</button></div>`).join('')}</div><button class="small-btn" id="addPerson" style="margin-top:8px">＋ Aggiungi partecipante</button>
   <h3 class="section-title">Organizzazione</h3><div class="form-row"><label>Data<input type="date" id="tourDate" value="${attr(state.config.date)}"></label><label>Hotel<input id="hotelName" value="${attr(state.config.hotelName||'')}"></label><label>Indirizzo hotel<input id="hotelAddress" value="${attr(state.config.hotelAddress||'')}"></label></div><button class="primary-btn wine" id="saveSettings">Salva impostazioni</button>
   <hr><div class="actions-row"><button class="small-btn" id="backupApp">💾 Esporta backup</button><button class="small-btn" id="updateApp">🔄 Aggiorna app</button><button class="small-btn" id="resetLocal">Ripristina demo locale</button></div></div>`;
@@ -680,7 +748,9 @@ function openSettings(){
   $('#saveSettings').addEventListener('click',async()=>{const names={};$$('[data-person-name]').forEach(i=>names[i.dataset.personName]=i.value.trim());const dev=$('#devicePerson').value;if(dev)localStorage.setItem(deviceParticipantKey,dev);else localStorage.removeItem(deviceParticipantKey);await mutate(st=>{st.participants.forEach(p=>p.name=names[p.id]||p.name);st.config.date=$('#tourDate').value;st.config.hotelName=$('#hotelName').value.trim();st.config.hotelAddress=$('#hotelAddress').value.trim();const h=findStop(st,'hotel');if(h){h.name=st.config.hotelName||'Hotel / Check-in';h.note=st.config.hotelAddress||'Zona Rialto · da impostare';h.mapQuery=st.config.hotelAddress||h.name+', Venezia';}});m.close();showToast('Impostazioni salvate');});
   $('#backupApp').addEventListener('click',exportBackup);
   $('#updateApp').addEventListener('click',async()=>{showToast('Controllo aggiornamenti…');try{const reg=await navigator.serviceWorker?.getRegistration();await reg?.update();setTimeout(()=>location.reload(),600);}catch{location.reload();}});
-  $('#resetLocal').disabled=backendMode==='remote'; $('#resetLocal').addEventListener('click',()=>{if(backendMode==='remote')return;if(confirm('Ripristinare la demo? Verranno cancellate le prove locali.')){state=clone(starterState);localStorage.setItem(storageKey,JSON.stringify(state));localStorage.removeItem(deviceParticipantKey);m.close();render();}}); if(!m.open)m.showModal();
+  const activate=$('#activateSharingBtn'); if(activate) activate.addEventListener('click',async()=>{activate.disabled=true;activate.textContent='Attivazione…';await activateSharing();m.close();});
+  const share=$('#shareAppBtn'); if(share) share.addEventListener('click',shareApp);
+  $('#resetLocal').disabled=backendMode!=='local'; $('#resetLocal').addEventListener('click',()=>{if(backendMode!=='local')return;if(confirm('Ripristinare la demo? Verranno cancellate le prove locali.')){state=clone(starterState);localStorage.setItem(storageKey,JSON.stringify(state));localStorage.removeItem(deviceParticipantKey);m.close();render();}}); if(!m.open)m.showModal();
 }
 
 function bindModalClose(m){ $$('[data-close]',m).forEach(b=>b.addEventListener('click',()=>{activeModalStopId=null;m.close();})); }
