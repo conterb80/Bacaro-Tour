@@ -38,3 +38,56 @@ textarea,input,select{width:100%;border:1px solid var(--line);background:#f8ead7
 .transport-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.transport-actions>*{flex:1 1 145px}.transport-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.transport-tool{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:8px;text-align:left}.transport-tool>span{grid-row:1/3;font-size:24px;align-self:center}.transport-tool b{font-size:12px}.transport-tool small{font-size:10px;color:var(--muted)}
 .route-advice.warning{background:#f2d9c8;border-left-color:#a64b3c}
 @media(max-width:420px){.transport-tools{grid-template-columns:1fr}.transport-step{grid-template-columns:26px 32px 1fr}.quick-destinations{margin-right:-4px}}
+
+
+/* RC5 · Mezzi essenziale: leggibilità, pochi tap, niente link generici */
+:root{--muted:#5f554d}
+.transport-head.compact{padding:12px 14px;background:#ead6b9;border-color:#c9aa7e}
+.transport-head.compact h2{margin:0 0 3px;font-size:27px;color:#241b18}
+.transport-head.compact p{font-size:13px;color:#5a4c42;font-weight:650}
+.transport-planner{background:#efd9bc;border:1px solid #c9ab83;box-shadow:none}
+.transport-planner label{font-weight:800;color:#2d231e}
+.transport-planner select{margin-top:5px;background:#fff5e6;color:#211a17;font-weight:750;border-color:#cbb18e}
+.transport-placeholder{background:#f8e8cf;color:#574a41;border-color:#bd9c70;font-weight:650}
+.transport-verdict{background:#dfeadf;border-color:#9fb89f;padding:11px 12px}
+.transport-verdict b{font-size:18px;color:#0c513a}
+.transport-verdict p{font-size:13px;color:#3f5148;font-weight:650}
+.transport-verdict.walk{background:#f0e0c8;border-color:#c8ab83}.transport-verdict.walk b{color:#741126}.transport-verdict.walk p{color:#51463e}
+.transport-step{background:#fff3df;border:1px solid #c8ad89;padding:11px}
+.step-copy b{font-size:15px;line-height:1.25;color:#251c18}
+.step-copy p{font-size:12px;color:#5d5149}
+.step-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.step-actions .small-btn{flex:1 1 150px;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.direct-map{background:#f1dfc6;color:#4b392f;border-color:#c9ad87}
+.transport-actions{margin-top:9px}.transport-actions .primary-btn{width:100%}
+.transport-chip{background:#f2ddc0;border-color:#c6a77d;color:#251d18}.transport-chip.danger{background:#ead2d4;color:#761027}
+.transport-calc{font-size:16px}
+@media(max-width:420px){.transport-head.compact h2{font-size:25px}.step-actions{flex-direction:column}.step-actions .small-btn{flex:1 1 auto;width:100%}}
+
+/* RC6 · Final Candidate: rifinitura leggera, nessun cambio di struttura */
+:root{
+  --cream:#ead9c2;
+  --paper:#fbefde;
+  --surface:#f2dfc8;
+  --surface2:#e6cdb0;
+  --line:#c8aa86;
+  --muted:#5a4d44;
+  --shadow:0 12px 28px rgba(73,42,23,.12);
+}
+.app-shell{background:linear-gradient(180deg,#f6e8d5 0,#ead7be 100%)}
+.topbar{background:rgba(251,239,222,.96);border-bottom-color:#c6a77f}
+.quick-card,.card{box-shadow:0 5px 17px rgba(73,42,23,.07)}
+.quick-card:active,.service:active,.small-btn:active,.primary-btn:active{transform:translateY(1px)}
+.page-head{background:linear-gradient(135deg,#e6cba8,#f8e8d1);border-color:#c7a477}
+.bottom-nav{background:#f7e5ce;border-top-color:#c5a67e}
+.nav-btn.active{font-weight:800}
+.guide-focus{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.guide-focus>div{min-width:0}.guide-focus .guide-add-custom{flex:0 0 auto;background:#7d1027;color:#fff;border-color:#7d1027}
+.guide-meta{color:#721126;font-weight:900}
+.guide-card{background:#fbefde}.guide-icon{background:#e6ccb0;border:1px solid #c9aa84}
+.free-destination{margin-top:10px;padding:11px;background:#f8e7cf;border:1px dashed #b99366;border-radius:14px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.free-destination[hidden]{display:none}.free-destination label{min-width:0}.free-destination .small-btn{white-space:nowrap}
+#vapPickMap{height:min(52vh,430px);min-height:330px;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:10px}
+.transport-planner input{margin-top:5px;background:#fff5e6;color:#211a17;font-weight:750;border-color:#cbb18e}
+.sync-box.local{background:#f2dfbd;border-color:#c7a270}
+@media(max-width:520px){.guide-focus{display:block}.guide-focus .guide-add-custom{margin-top:12px;width:100%}.free-destination{grid-template-columns:1fr}.free-destination .small-btn{width:100%}}

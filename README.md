@@ -1,20 +1,15 @@
-# Bacaro Tour Venezia 2026 · RC4 Mezzi
+# Bacaro Tour Venezia 2026 · RC6 Final Candidate
 
-Release di test focalizzata sulla sezione **🚤 Mezzi · Muoviti veloce**.
+Versione candidata alla chiusura prima della sincronizzazione Firebase.
 
-## Novità RC4
-- La Mappa Tour resta invariata e dedicata agli spostamenti a piedi.
-- Sezione Mezzi separata: scegli partenza e destinazione e ottieni una sequenza pratica.
-- Se usi **Posizione attuale**, l'app individua il nodo ACTV principale più vicino.
-- Istruzioni: tratto a piedi all'imbarco → linea/pontile/direzione → fermata di discesa → eventuale tratto finale.
-- Pulsanti diretti a Google Maps **solo per i tratti a piedi**.
-- Orari indicativi integrati per le tratte più utili (Linea 12, Linea 3, Linea 9), con link di verifica ACTV live.
-- Pulsante mappe approdi/pontili ufficiali.
-- Scorciatoie rapide: Murano, Burano, Fondamente Nove, S. Lucia.
-- Rientro Burano/Torcello → S. Lucia impostato in modo robusto: linea 12 fino a Fondamente Nove e ultimo tratto a piedi, evitando cambi non necessari.
+## Cosa cambia
+- **Mezzi**: destinazione libera oltre alle scorciatoie. Puoi scrivere zone/fermate come Arsenale, Accademia, Redentore ecc. oppure scegliere un punto direttamente sulla mappa.
+- **Mezzi**: eliminati i link ACTV generici. Il risultato resta essenziale: raggiungi l’imbarco a piedi → linea/direzione → scendi → eventuale ultimo tratto a piedi.
+- **Guida Giorno 1**: trasformata in “Vicino al Tour”, con solo deviazioni brevi a piedi, bacari e botteghe coerenti con Cannaregio/Tolentini.
+- **Guida modificabile**: puoi aggiungere nuovi luoghi direttamente dall’app senza creare una nuova RC.
+- **Questo telefono è di…**: ogni partecipante potrà scegliere il proprio nome sul proprio telefono, così nelle bevute viene preselezionata la persona corretta.
+- **Backup**: esportazione manuale dei dati del tour dalle Impostazioni.
+- **Grafica**: solo rifinitura di contrasto, superfici e gerarchie; struttura, logo, icone ed emoji restano invariati.
 
-## Nota
-Gli orari integrati sono riferimenti ACTV pubblicati nel 2026 e servono per orientarsi rapidamente. Prima di salire va sempre usato **Verifica orari live**, perché servizio, pontili e corse possono cambiare.
-
-## Aggiornamento su GitHub Pages
-Sostituire i file della RC3 con quelli di questa cartella mantenendo la stessa repository. Il service worker usa una nuova cache RC4.
+## Prossimo passo
+Dopo il test finale di questa RC: configurazione Firebase, migrazione dei dati locali del telefono principale e prova reale di sincronizzazione su più telefoni.
