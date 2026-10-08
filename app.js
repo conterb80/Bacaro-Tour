@@ -1,6 +1,6 @@
-import { firebaseConfig, sharedPath } from './firebase-config.js?v=102';
+import { firebaseConfig, sharedPath } from './firebase-config.js?v=103';
 
-const APP_VERSION = 'v1.0.2 · CONDIVISA';
+const APP_VERSION = 'v1.0.3 · CONDIVISA';
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -311,7 +311,7 @@ function renderMapView(){
   const day=state.config.currentDay||'day1'; const placing=pendingPlaceStopId?stopById(pendingPlaceStopId):null;
   $('#mainView').innerHTML=`
     <div class="segmented"><button class="seg-btn ${day==='day1'?'active':''}" data-day="day1">Giorno 1</button><button class="seg-btn ${day==='day2'?'active':''}" data-day="day2">Giorno 2</button></div>
-    ${placing?`<div class="placement-banner">📌 Tocca sulla mappa il punto di <strong>${escapeHtml(placing.name)}</strong><button id="cancelPlace">Annulla</button></div>`:''}
+    ${placing?`<div class="placement-banner"><span>📌 Posiziona <strong>${escapeHtml(placing.name)}</strong></span><div class="placement-actions"><button id="searchPlaceInstead">🔎 Cerca posizione</button><button id="cancelPlace">Annulla</button></div><div class="tiny">Oppure tocca direttamente il punto sulla mappa.</div></div>`:''}
     <div class="map-toolbar">
       <button class="small-btn" id="locateBtn">📍 La mia posizione</button>
       <button class="small-btn" id="addStopBtn">➕ Aggiungi tappa</button>
@@ -326,6 +326,7 @@ function renderMapView(){
   $('#listStopsBtn').addEventListener('click',()=>openManageStops(day));
   $('#nextStopBtn').addEventListener('click',()=>focusNextStop(day));
   $('#openExternalMapBtn').addEventListener('click',()=>window.open('https://www.google.com/maps/search/?api=1&query=Venezia','_blank'));
+  $('#searchPlaceInstead')?.addEventListener('click',()=>{const id=pendingPlaceStopId;pendingPlaceStopId=null;if(id) openEditStopModal(id);});
   $('#cancelPlace')?.addEventListener('click',()=>{pendingPlaceStopId=null;renderMapView();});
   setTimeout(()=>initMap(day),0);
 }
@@ -513,17 +514,33 @@ function bindDrinkAddButtons(stopId,getActive){
 }
 
 async function searchVenicePlaces(query){
-  const q=(query||'').trim(); if(!q) return [];
-  const url=new URL('https://nominatim.openstreetmap.org/search');
-  url.searchParams.set('format','jsonv2');
-  url.searchParams.set('q',`${q}, Venezia, Italia`);
-  url.searchParams.set('limit','6');
-  url.searchParams.set('countrycodes','it');
-  url.searchParams.set('addressdetails','1');
-  url.searchParams.set('accept-language','it');
-  const r=await fetch(url.toString(),{headers:{'Accept':'application/json'}});
-  if(!r.ok) throw new Error('Ricerca luogo non disponibile');
-  return (await r.json()).map(x=>({lat:+x.lat,lng:+x.lon,label:x.display_name||q})).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng));
+  const q=String(query||'').trim(); if(!q) return [];
+  const run=async(searchQ)=>{
+    const url=new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('format','jsonv2');
+    url.searchParams.set('q',searchQ);
+    url.searchParams.set('limit','8');
+    url.searchParams.set('countrycodes','it');
+    url.searchParams.set('addressdetails','1');
+    url.searchParams.set('accept-language','it');
+    // Limita la ricerca alla laguna/area veneziana: evita omonimie lontane.
+    url.searchParams.set('viewbox','12.10,45.62,12.75,45.18');
+    url.searchParams.set('bounded','1');
+    const r=await fetch(url.toString(),{headers:{'Accept':'application/json'}});
+    if(!r.ok) throw new Error('Ricerca luogo non disponibile');
+    return await r.json();
+  };
+  let raw=await run(/venezia/i.test(q)?q:`${q}, Venezia`);
+  // Se il nome commerciale non viene trovato, riprova senza aggiunte automatiche.
+  if(!raw.length && !/venezia/i.test(q)) raw=await run(q);
+  const seen=new Set();
+  return raw.map(x=>{
+    const a=x.address||{};
+    const street=[a.road||a.pedestrian||a.footway||a.neighbourhood||'',a.house_number||''].filter(Boolean).join(' ');
+    const district=a.suburb||a.quarter||a.city_district||a.neighbourhood||'';
+    const detail=[street,district,a.city||a.town||a.village||'Venezia'].filter(Boolean).join(' · ');
+    return {lat:+x.lat,lng:+x.lon,label:x.display_name||q,detail,type:x.type||x.category||''};
+  }).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng)).filter(x=>{const k=x.lat.toFixed(6)+','+x.lng.toFixed(6);if(seen.has(k))return false;seen.add(k);return true;});
 }
 
 function shortPlaceLabel(label){
@@ -541,7 +558,7 @@ function bindStopPlaceSearch({inputId,buttonId,resultsId,statusId,onPick}){
       const found=await searchVenicePlaces(q);
       if(!found.length){status.textContent='Nessun risultato. Puoi comunque posizionarlo manualmente sulla mappa.';return;}
       status.textContent='Tocca il risultato corretto:';
-      results.innerHTML=found.map((x,i)=>`<button class="place-result" data-place-result="${i}"><strong>${escapeHtml(shortPlaceLabel(x.label))}</strong><span>${escapeHtml(x.label)}</span></button>`).join('');
+      results.innerHTML=found.map((x,i)=>`<button class="place-result" data-place-result="${i}"><strong>${escapeHtml(shortPlaceLabel(x.label))}</strong><span>${escapeHtml(x.detail||x.label)}</span><small>${escapeHtml(x.label)}</small></button>`).join('');
       $$('[data-place-result]',results).forEach(b=>b.addEventListener('click',()=>{
         const x=found[+b.dataset.placeResult]; if(!x)return; onPick(x);
         results.innerHTML=''; status.innerHTML=`✅ Posizione trovata: <strong>${escapeHtml(shortPlaceLabel(x.label))}</strong>`;
@@ -563,9 +580,9 @@ function openAddStopModal(day,latlng=null){
 
 function openEditStopModal(id){
   const s=stopById(id), day=dayOfStop(id), m=$('#modal'); if(!s)return; activeModalStopId=null; let chosen=(s.lat!=null&&s.lng!=null)?{lat:s.lat,lng:s.lng,label:s.mapQuery||s.name}:null;
-  $('#modalBody').innerHTML=`<div class="modal-head"><h2>Modifica tappa</h2><button class="close-btn" data-close>✕</button></div><div class="modal-content"><div class="form-row"><label>Nome<input id="editName" value="${attr(s.name)}"></label><div class="place-search-row"><button class="primary-btn green" id="editFindPlace">🔎 Trova sulla mappa</button><div class="tiny muted" id="editPlaceStatus">${s.lat!=null?'📍 Posizione già impostata. Cerca di nuovo solo se vuoi correggerla.':'Cerca il luogo per posizionarlo automaticamente.'}</div></div><div id="editPlaceResults" class="place-results"></div><label>Tipo<select id="editType">${['bacaro','poi','hotel','transit'].map(x=>`<option value="${x}" ${s.type===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Nota<textarea id="editNote">${escapeHtml(s.note||'')}</textarea></label><label><input type="checkbox" id="editFixed" ${s.fixed?'checked':''}> Tappa fissa</label><label><input type="checkbox" id="editOptional" ${s.optional?'checked':''}> Opzionale</label></div><div class="actions-row"><button class="primary-btn wine" id="saveEdit">Salva</button><button class="primary-btn ghost" id="moveOnMap">📌 ${s.lat==null?'Posiziona':'Correggi'} a mano</button><button class="primary-btn ghost" id="deleteStop">🗑 Elimina</button></div></div>`;
+  $('#modalBody').innerHTML=`<div class="modal-head"><h2>Modifica tappa</h2><button class="close-btn" data-close>✕</button></div><div class="modal-content"><div class="form-row"><label>Nome<input id="editName" value="${attr(s.name)}"></label><label>Cerca posizione<input id="editSearchQuery" value="${attr(s.mapQuery||s.name)}" placeholder="Nome o indirizzo, es. Cannaregio 1268"></label><div class="place-search-row"><button class="primary-btn green" id="editFindPlace">🔎 Cerca posizione</button><div class="tiny muted" id="editPlaceStatus">${s.lat!=null?'📍 Posizione già impostata. Cerca di nuovo se vuoi correggerla.':'Cerca il luogo per posizionarlo automaticamente.'}</div></div><div id="editPlaceResults" class="place-results"></div><label>Tipo<select id="editType">${['bacaro','poi','hotel','transit'].map(x=>`<option value="${x}" ${s.type===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Nota<textarea id="editNote">${escapeHtml(s.note||'')}</textarea></label><label><input type="checkbox" id="editFixed" ${s.fixed?'checked':''}> Tappa fissa</label><label><input type="checkbox" id="editOptional" ${s.optional?'checked':''}> Opzionale</label></div><div class="actions-row"><button class="primary-btn wine" id="saveEdit">Salva</button><button class="primary-btn ghost" id="moveOnMap">📌 ${s.lat==null?'Posiziona':'Correggi'} a mano</button><button class="primary-btn ghost" id="deleteStop">🗑 Elimina</button></div></div>`;
   bindModalClose(m);
-  bindStopPlaceSearch({inputId:'#editName',buttonId:'#editFindPlace',resultsId:'#editPlaceResults',statusId:'#editPlaceStatus',onPick:x=>chosen=x});
+  bindStopPlaceSearch({inputId:'#editSearchQuery',buttonId:'#editFindPlace',resultsId:'#editPlaceResults',statusId:'#editPlaceStatus',onPick:x=>chosen=x});
   $('#saveEdit').addEventListener('click',async()=>{await mutate(st=>{const x=findStop(st,id);x.name=$('#editName').value.trim()||x.name;x.type=$('#editType').value;x.note=$('#editNote').value.trim();x.fixed=$('#editFixed').checked;x.optional=$('#editOptional').checked;if(chosen){x.lat=chosen.lat;x.lng=chosen.lng;x.mapQuery=chosen.label||`${x.name}, Venezia`;}},{kind:'system',title:'Tappa modificata',text:$('#editName').value.trim()});m.close();showToast('Tappa salvata');});
   $('#moveOnMap').addEventListener('click',()=>{m.close();pendingPlaceStopId=id;currentView='map';state.config.currentDay=day;render();});
   $('#deleteStop').addEventListener('click',async()=>{if(!confirm('Eliminare questa tappa?'))return;await mutate(st=>{st.tours[day].stops=st.tours[day].stops.filter(x=>x.id!==id);st.drinks=(st.drinks||[]).filter(d=>d.stopId!==id);st.topEvents=(st.topEvents||[]).filter(e=>e.stopId!==id);},{kind:'system',title:'Tappa eliminata',text:s.name});m.close();}); if(!m.open)m.showModal();
@@ -806,7 +823,7 @@ function openSettings(){
         await Promise.all(keys.map(k=>caches.delete(k)));
       }
       const u=new URL(location.href);
-      u.searchParams.set('_appv','102');
+      u.searchParams.set('_appv','103');
       u.searchParams.set('_refresh',Date.now().toString());
       location.replace(u.toString());
     }catch(e){

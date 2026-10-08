@@ -1,13 +1,10 @@
-# Bacaro Tour Venezia 2026 — v1.0.2 Hard Update
+# Bacaro Tour Venezia 2026 — v1.0.3 Map Search Fix
 
-Questa versione mantiene invariati Firebase e i dati condivisi e rende evidente/forzabile l'aggiornamento della PWA.
+Patch mirata alla mappa.
 
-Modifiche:
-- versione visibile `v1.0.2 · CONDIVISA`;
-- cache PWA completamente nuova;
-- CSS e JavaScript caricati con versione esplicita per evitare file vecchi in cache;
-- pulsante `Aggiorna app` ora cancella cache e vecchi service worker e ricarica la versione online;
-- confermato Map Fix: niente linea tratteggiata fittizia, marker numerati e ricerca luogo in Aggiungi/Modifica tappa;
-- Firebase, sharedPath e chiavi di salvataggio restano invariati.
-
-Per pubblicare: sostituire tutti i file nella root GitHub Pages. Dopo il deploy, aprire l'app e usare Impostazioni → Aggiorna app. La versione mostrata deve essere v1.0.2.
+- La modalità manuale mostra ora anche **Cerca posizione**.
+- In Modifica tappa c’è un campo separato **Cerca posizione**: puoi scrivere nome o indirizzo senza cambiare il nome della tappa.
+- Ricerca limitata all’area veneziana per ridurre omonimie.
+- Risultati mostrano indirizzo/dettaglio prima della selezione.
+- Nessuna modifica a Firebase, Diario, Tour, Mezzi o Guida.
+- Cache PWA aggiornata a v1.0.3.

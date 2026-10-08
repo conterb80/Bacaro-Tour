@@ -1,5 +1,5 @@
-const CACHE='bacaro-tour-2026-v1-0-2-hard-v1';
-const ASSETS=['./','./index.html','./styles.css?v=102','./app.js?v=102','./firebase-config.js?v=102','./manifest.webmanifest?v=102','./logo.jpg','./icon-192.png','./icon-512.png'];
+const CACHE='bacaro-tour-2026-v1-0-3-map-search-v1';
+const ASSETS=['./','./index.html','./styles.css?v=103','./app.js?v=103','./firebase-config.js?v=103','./manifest.webmanifest?v=103','./logo.jpg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',event=>{
