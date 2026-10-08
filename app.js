@@ -1,6 +1,6 @@
-import { firebaseConfig, sharedPath } from './firebase-config.js';
+import { firebaseConfig, sharedPath } from './firebase-config.js?v=102';
 
-const APP_VERSION = 'v1.0.1 · CONDIVISA';
+const APP_VERSION = 'v1.0.2 · CONDIVISA';
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -794,7 +794,26 @@ function openSettings(){
   $$('[data-remove-person]').forEach(b=>b.addEventListener('click',async()=>{const removing=b.dataset.removePerson;if(removing===deviceParticipantId())localStorage.removeItem(deviceParticipantKey);await mutate(st=>{st.participants=st.participants.filter(p=>p.id!==removing);st.drinks=(st.drinks||[]).filter(d=>d.participantId!==removing);});m.close();openSettings();}));
   $('#saveSettings').addEventListener('click',async()=>{const names={};$$('[data-person-name]').forEach(i=>names[i.dataset.personName]=i.value.trim());const dev=$('#devicePerson').value;if(dev)localStorage.setItem(deviceParticipantKey,dev);else localStorage.removeItem(deviceParticipantKey);await mutate(st=>{st.participants.forEach(p=>p.name=names[p.id]||p.name);st.config.date=$('#tourDate').value;st.config.hotelName=$('#hotelName').value.trim();st.config.hotelAddress=$('#hotelAddress').value.trim();const h=findStop(st,'hotel');if(h){h.name=st.config.hotelName||'Hotel / Check-in';h.note=st.config.hotelAddress||'Zona Rialto · da impostare';h.mapQuery=st.config.hotelAddress||h.name+', Venezia';}});m.close();showToast('Impostazioni salvate');});
   $('#backupApp').addEventListener('click',exportBackup);
-  $('#updateApp').addEventListener('click',async()=>{showToast('Controllo aggiornamenti…');try{const reg=await navigator.serviceWorker?.getRegistration();await reg?.update();setTimeout(()=>location.reload(),600);}catch{location.reload();}});
+  $('#updateApp').addEventListener('click',async()=>{
+    showToast('Aggiornamento forzato…');
+    try{
+      if('serviceWorker' in navigator){
+        const regs=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r=>r.unregister()));
+      }
+      if('caches' in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.map(k=>caches.delete(k)));
+      }
+      const u=new URL(location.href);
+      u.searchParams.set('_appv','102');
+      u.searchParams.set('_refresh',Date.now().toString());
+      location.replace(u.toString());
+    }catch(e){
+      console.warn('Aggiornamento forzato non completo',e);
+      location.reload();
+    }
+  });
   const activate=$('#activateSharingBtn'); if(activate) activate.addEventListener('click',async()=>{activate.disabled=true;activate.textContent='Attivazione…';await activateSharing();m.close();});
   const share=$('#shareAppBtn'); if(share) share.addEventListener('click',shareApp);
   $('#resetLocal').disabled=backendMode!=='local'; $('#resetLocal').addEventListener('click',()=>{if(backendMode!=='local')return;if(confirm('Ripristinare la demo? Verranno cancellate le prove locali.')){state=clone(starterState);localStorage.setItem(storageKey,JSON.stringify(state));localStorage.removeItem(deviceParticipantKey);m.close();render();}}); if(!m.open)m.showModal();
