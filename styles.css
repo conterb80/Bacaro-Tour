@@ -93,3 +93,8 @@ textarea,input,select{width:100%;border:1px solid var(--line);background:#f8ead7
 @media(max-width:520px){.guide-focus{display:block}.guide-focus .guide-add-custom{margin-top:12px;width:100%}.free-destination{grid-template-columns:1fr}.free-destination .small-btn{width:100%}}
 
 .owner-choice{display:grid;gap:9px;margin:14px 0}.owner-choice .primary-btn{justify-content:flex-start;text-align:left}
+
+/* v1.0.1 · mappa: punti ordinati, nessuna linea retta fuorviante, ricerca luoghi */
+.map-pin{position:relative;width:40px;height:40px;font-size:17px}.map-pin-symbol{display:grid;place-items:center;line-height:1}.map-seq{position:absolute;right:-5px;top:-7px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#fff7e8;color:#6f0d20;border:2px solid #7d1027;font:900 10px/14px system-ui;text-align:center;box-sizing:border-box;box-shadow:0 1px 4px #0002}
+.place-search-row{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:10px;background:#f6e5cc;border:1px solid #c9aa84;border-radius:14px}.place-search-row .primary-btn{margin:0;white-space:nowrap}.place-results{display:grid;gap:7px}.place-result{appearance:none;width:100%;text-align:left;border:1px solid #c5a47b;background:#fff5e7;color:#211a17;border-radius:12px;padding:10px 12px}.place-result strong{display:block;font-size:14px}.place-result span{display:block;color:#6e6258;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:520px){.place-search-row{grid-template-columns:1fr}.place-search-row .primary-btn{width:100%}}
